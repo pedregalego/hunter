@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Karnak Scan — Fraturas do Consumidor Digital</title>
+<style>
+  body { font-family: system-ui; max-width: 1300px; margin: 2rem auto; padding: 0 1rem; background: #fafafa; }
+  h1 { font-size: 1.4rem; }
+  .filter-bar { background: #fff; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .filter-bar label { margin-right: 1rem; font-size: .92rem; }
+  .panel { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+  .card { background: #fff; border-radius: 8px; padding: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .case-list { list-style: none; padding: 0; margin: 0; max-height: 600px; overflow-y: auto; }
+  .case-list li { padding: .55rem .25rem; border-bottom: 1px solid #eee; font-size: .9rem; }
+  .case-list a { color: #0066cc; text-decoration: none; }
+  .case-list a:hover { text-decoration: underline; }
+  .tag { display: inline-block; font-size: .7rem; padding: .1rem .4rem; border-radius: 4px; background: #eef; color: #335; margin-right: .4rem; }
+  #report { background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 8px; white-space: pre-wrap; font-family: monospace; font-size: .82rem; min-height: 500px; max-height: 600px; overflow-y: auto; }
+  button { padding: .75rem 1.5rem; font-size: 1rem; cursor: pointer; border: none; border-radius: 6px; background: #0066cc; color: #fff; }
+  button:disabled { background: #999; cursor: wait; }
+  .status { font-size: .8rem; color: #666; margin-top: .5rem; }
+</style>
+</head>
+<body>
+<h1>Karnak Scan — Fraturas do Consumidor Digital</h1>
+
+<div class="filter-bar">
+  <label><input type="checkbox" class="filter" value="meta" checked> Meta/Instagram</label>
+  <label><input type="checkbox" class="filter" value="tiktok" checked> TikTok</label>
+  <label><input type="checkbox" class="filter" value="discord" checked> Discord</label>
+  <label><input type="checkbox" class="filter" value="dark" checked> Dark Patterns</label>
+  <label><input type="checkbox" class="filter" value="anpd"> ANPD/Sanções</label>
+</div>
+
+<div class="panel">
+  <div class="card">
+    <h2>Casos / Notícias</h2>
+    <ul class="case-list" id="caseList"></ul>
+  </div>
+  <div class="card">
+    <h2>Relatório de Scan</h2>
+    <button id="scanBtn">Executar Scan</button>
+    <div class="status" id="status"></div>
+    <pre id="report">Clique em "Executar Scan" para analisar os casos selecionados.</pre>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// CONFIGURAÇÃO — substitua aqui
+// ============================================================
+const GEMINI_KEY = 'AQ.Ab8RN6IQZSHq6dxJrhcDoptWqUNsuUa-1JNu-x_NimSk6lDW4w';
+const MODEL = 'gemini-3.6-flash'; // ou gemini-2.5-flash
+// ============================================================
+
+const CASES = [
+  { id: 1, tag: 'meta', title: 'TJRN: reativação de contas Facebook/Instagram', url: 'https://www.tjrn.jus.br/noticias/26899' },
+  { id: 2, tag: 'meta', title: 'TJMA: Facebook condenado por suspender perfil sem aviso (R$ 3 mil)', url: 'https://www.tjma.jus.br/midia/portal/noticia/521153' },
+  { id: 3, tag: 'meta', title: 'Reclame Aqui: suspensão reincidente Instagram/Facebook', url: 'https://www.reclameaqui.com.br/facebook/suspensao-indevida-e-reincidente' },
+  { id: 4, tag: 'meta', title: 'ANPD: Nota Técnica sobre tratamento de dados pela Meta para IA', url: 'https://www.gov.br/anpd/pt-br/centrais-de-conteudo/documentos-tecnicos-orientativos/sei_anpd-0140555-nota-tecnica.pdf' },
+  { id: 5, tag: 'meta', title: 'Reclame Aqui: conta Instagram suspensa sem esclarecimento', url: 'https://www.reclameaqui.com.br/instagram/conta-suspensa-sem-esclarecimento' },
+  { id: 6, tag: 'tiktok', title: 'Agência Brasil: ANPD multa TikTok em R$ 153,7 mi', url: 'https://agenciabrasil.ebc.com.br/direitos-humanos/noticia/2026-08/brasil-multa-tiktok' },
+  { id: 7, tag: 'tiktok', title: 'Reclame Aqui: TikTok recusa exclusão de conta (LGPD art. 18)', url: 'https://www.reclameaqui.com.br/tiktok/tiktok-se-recusa-a-excluir-conta' },
+  { id: 8, tag: 'tiktok', title: 'Reclame Aqui: perda de acesso à conta TikTok', url: 'https://www.reclameaqui.com.br/tiktok/perda-de-acesso-a-conta' },
+  { id: 9, tag: 'tiktok', title: 'Reclame Aqui: solicito exclusão da conta TikTok', url: 'https://www.reclameaqui.com.br/tiktok/solicito-exclusao-da-minha-conta' },
+  { id: 10, tag: 'discord', title: 'Reclame Aqui: conta hackeada e banimento injusto', url: 'https://www.reclameaqui.com.br/discord/conta-hackeada-banimento-injusto' },
+  { id: 11, tag: 'discord', title: 'Reclame Aqui: banimento injusto no Discord', url: 'https://www.reclameaqui.com.br/discord/banimento-injusto-bloqueio-de-conta' },
+  { id: 12, tag: 'dark', title: 'Reclame Aqui: cobrança indevida de assinatura após cashback', url: 'https://www.reclameaqui.com.br/compra-e-volta/cobranca-indevida-de-assinatura' },
+  { id: 13, tag: 'dark', title: 'Reclame Aqui: dificuldade em cancelar assinatura', url: 'https://www.reclameaqui.com.br/adapta-org/dificuldade-em-cancelar-assinatura' },
+  { id: 14, tag: 'dark', title: 'Reclame Aqui: cobrança automática e dificuldade de cancelamento', url: 'https://www.reclameaqui.com.br/manual/cobranca-automatica-indevida' },
+  { id: 15, tag: 'anpd', title: 'Câmara: PL 1470/2026 — direito à interface justa', url: 'https://www.camara.leg.br/proposicoesWeb/prop_imp?idProposicao=2612648' },
+  { id: 16, tag: 'anpd', title: 'Rádio Câmara: dark patterns em aplicativos financeiros', url: 'https://www.camara.leg.br/radio/1266661' },
+  { id: 17, tag: 'meta', title: 'Rosenbaum: 2.555 decisões TJSP sobre contas bloqueadas', url: 'https://www.rosenbaum.adv.br/observatorio-plataformas-digitais/' },
+  { id: 18, tag: 'anpd', title: 'Swissinfo: ANPD multa TikTok; Discord com live suspensa', url: 'https://www.swissinfo.ch/por/anpd-multa-tiktok' },
+  { id: 19, tag: 'anpd', title: 'TJSP: Juizados Especiais — jus postulandi', url: 'https://portal.tjsp.jus.br/Noticias/Noticia?codigoNoticia=115187' },
+  { id: 20, tag: 'anpd', title: 'TJTO: regulamentação do Jus Postulandi', url: 'https://www.tjto.jus.br/comunicacao/noticias/tjto-regulamenta-ferramenta-jus-postulandi' },
+];
+
+const list = document.getElementById('caseList');
+function render() {
+  const active = new Set([...document.querySelectorAll('.filter:checked')].map(c => c.value));
+  list.innerHTML = CASES
+    .filter(c => active.has(c.tag))
+    .map(c => `<li><span class="tag">${c.tag}</span><a href="${c.url}" target="_blank" rel="noopener">${c.title}</a></li>`)
+    .join('');
+}
+document.querySelectorAll('.filter').forEach(f => f.addEventListener('change', render));
+render();
+
+const btn = document.getElementById('scanBtn');
+const report = document.getElementById('report');
+const status = document.getElementById('status');
+
+btn.addEventListener('click', async () => {
+  const active = new Set([...document.querySelectorAll('.filter:checked')].map(c => c.value));
+  const selected = CASES.filter(c => active.has(c.tag));
+  if (selected.length === 0) { status.textContent = 'Selecione ao menos um filtro.'; return; }
+
+  btn.disabled = true;
+  report.textContent = 'Escaneando ' + selected.length + ' casos...\n(Modelo: ' + MODEL + ')';
+  status.textContent = 'Chamando Gemini API...';
+
+  const prompt = `Você é Karnak, pesquisador de fraturas do consumidor digital brasileiro.
+Analise os casos abaixo. Para cada um, produza:
+1. FRATURA (conduta que viola norma consumerista)
+2. NORMA-ÂNCORA (dispositivo exato: CDC, LGPD, ECA Digital)
+3. TESTE DO USUÁRIO (passos em até 10 min, com prova a coletar)
+4. CAMINHO (Juizado Especial individual / Representação ao MP para ACP / Apenas monitorar)
+5. GRAU DE CONFIANÇA (alto/médio/baixo) + justificativa
+
+Casos:
+${JSON.stringify(selected, null, 2)}`;
+
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': GEMINI_KEY
+      },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }]
+      })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      report.textContent = 'ERRO HTTP ' + res.status + '\n\n' + JSON.stringify(data, null, 2) +
+        '\n\n--- Diagnóstico ---\n' +
+        '- Se for 400/403: a chave pode não ser válida para Gemini API.\n' +
+        '- Se for 429: cota gratuita esgotada.\n' +
+        '- Se for 404: modelo "' + MODEL + '" não disponível — tente gemini-2.5-flash.';
+    } else {
+      const text = data.candidates?.[0]?.content?.parts?.map(p => p.text).join('\n') || JSON.stringify(data, null, 2);
+      report.textContent = text;
+    }
+    status.textContent = 'Concluído em ' + new Date().toLocaleTimeString();
+  } catch (e) {
+    report.textContent = 'ERRO DE REDE: ' + e.message +
+      '\n\n--- Diagnóstico ---\n' +
+      '- CORS: se abriu como file://, o navegador pode bloquear. Sirva via http://localhost.\n' +
+      '- Rede: verifique conexão.';
+    status.textContent = 'Falha.';
+  } finally {
+    btn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>
