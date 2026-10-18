@@ -2,27 +2,26 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>Karnak Scan — Fraturas do Consumidor Digital</title>
+<title>Karnak Scan — OpenRouter + Gemma</title>
 <style>
-  body { font-family: system-ui; max-width: 1300px; margin: 2rem auto; padding: 0 1rem; background: #fafafa; }
-  h1 { font-size: 1.4rem; }
+  body { font-family: system-ui, sans-serif; max-width: 1300px; margin: 2rem auto; padding: 0 1rem; background: #fafafa; }
+  h1 { font-size: 1.3rem; }
   .filter-bar { background: #fff; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
   .filter-bar label { margin-right: 1rem; font-size: .92rem; }
   .panel { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
   .card { background: #fff; border-radius: 8px; padding: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
-  .case-list { list-style: none; padding: 0; margin: 0; max-height: 600px; overflow-y: auto; }
-  .case-list li { padding: .55rem .25rem; border-bottom: 1px solid #eee; font-size: .9rem; }
+  .case-list { list-style: none; padding: 0; margin: 0; max-height: 620px; overflow-y: auto; }
+  .case-list li { padding: .55rem .25rem; border-bottom: 1px solid #eee; font-size: .88rem; }
   .case-list a { color: #0066cc; text-decoration: none; }
-  .case-list a:hover { text-decoration: underline; }
-  .tag { display: inline-block; font-size: .7rem; padding: .1rem .4rem; border-radius: 4px; background: #eef; color: #335; margin-right: .4rem; }
-  #report { background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 8px; white-space: pre-wrap; font-family: monospace; font-size: .82rem; min-height: 500px; max-height: 600px; overflow-y: auto; }
-  button { padding: .75rem 1.5rem; font-size: 1rem; cursor: pointer; border: none; border-radius: 6px; background: #0066cc; color: #fff; }
+  .tag { display: inline-block; font-size: .68rem; padding: .1rem .4rem; border-radius: 4px; background: #eef; color: #335; margin-right: .4rem; }
+  #report { background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 8px; white-space: pre-wrap; font-family: monospace; font-size: .8rem; min-height: 500px; max-height: 620px; overflow-y: auto; }
+  button { padding: .7rem 1.4rem; font-size: .95rem; cursor: pointer; border: none; border-radius: 6px; background: #7c3aed; color: #fff; }
   button:disabled { background: #999; cursor: wait; }
   .status { font-size: .8rem; color: #666; margin-top: .5rem; }
 </style>
 </head>
 <body>
-<h1>Karnak Scan — Fraturas do Consumidor Digital</h1>
+<h1>Karnak Scan — OpenRouter + Gemma 4 26B</h1>
 
 <div class="filter-bar">
   <label><input type="checkbox" class="filter" value="meta" checked> Meta/Instagram</label>
@@ -41,16 +40,16 @@
     <h2>Relatório de Scan</h2>
     <button id="scanBtn">Executar Scan</button>
     <div class="status" id="status"></div>
-    <pre id="report">Clique em "Executar Scan" para analisar os casos selecionados.</pre>
+    <pre id="report">Clique em "Executar Scan".</pre>
   </div>
 </div>
 
 <script>
 // ============================================================
-// CONFIGURAÇÃO — substitua aqui
+// CONFIGURAÇÃO OPENROUTER
 // ============================================================
-const GEMINI_KEY = 'AQ.Ab8RN6IQZSHq6dxJrhcDoptWqUNsuUa-1JNu-x_NimSk6lDW4w';
-const MODEL = 'gemini-3.6-flash'; // ou gemini-2.5-flash
+const OPENROUTER_KEY = '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';
+const MODEL = 'google/gemma-4-26b-a4b-it:free';
 // ============================================================
 
 const CASES = [
@@ -94,11 +93,11 @@ const status = document.getElementById('status');
 btn.addEventListener('click', async () => {
   const active = new Set([...document.querySelectorAll('.filter:checked')].map(c => c.value));
   const selected = CASES.filter(c => active.has(c.tag));
-  if (selected.length === 0) { status.textContent = 'Selecione ao menos um filtro.'; return; }
+  if (!selected.length) { status.textContent = 'Selecione ao menos um filtro.'; return; }
 
   btn.disabled = true;
-  report.textContent = 'Escaneando ' + selected.length + ' casos...\n(Modelo: ' + MODEL + ')';
-  status.textContent = 'Chamando Gemini API...';
+  report.textContent = `Escaneando ${selected.length} casos via OpenRouter (${MODEL})...`;
+  status.textContent = 'Chamando OpenRouter...';
 
   const prompt = `Você é Karnak, pesquisador de fraturas do consumidor digital brasileiro.
 Analise os casos abaixo. Para cada um, produza:
@@ -112,36 +111,34 @@ Casos:
 ${JSON.stringify(selected, null, 2)}`;
 
   try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
-    const res = await fetch(url, {
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
+        'Authorization': `Bearer ${OPENROUTER_KEY}`,
         'Content-Type': 'application/json',
-        'x-goog-api-key': GEMINI_KEY
+        'HTTP-Referer': window.location.origin,
+        'X-Title': 'Karnak Scan'
       },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }]
+        model: MODEL,
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 2000
       })
     });
 
     const data = await res.json();
 
     if (!res.ok) {
-      report.textContent = 'ERRO HTTP ' + res.status + '\n\n' + JSON.stringify(data, null, 2) +
-        '\n\n--- Diagnóstico ---\n' +
-        '- Se for 400/403: a chave pode não ser válida para Gemini API.\n' +
-        '- Se for 429: cota gratuita esgotada.\n' +
-        '- Se for 404: modelo "' + MODEL + '" não disponível — tente gemini-2.5-flash.';
-    } else {
-      const text = data.candidates?.[0]?.content?.parts?.map(p => p.text).join('\n') || JSON.stringify(data, null, 2);
-      report.textContent = text;
+      report.textContent = `ERRO HTTP ${res.status}\n\n${JSON.stringify(data, null, 2)}`;
+      status.textContent = 'Falha.';
+      return;
     }
-    status.textContent = 'Concluído em ' + new Date().toLocaleTimeString();
+
+    const text = data.choices?.[0]?.message?.content || JSON.stringify(data, null, 2);
+    report.textContent = text;
+    status.textContent = `Concluído em ${new Date().toLocaleTimeString()}`;
   } catch (e) {
-    report.textContent = 'ERRO DE REDE: ' + e.message +
-      '\n\n--- Diagnóstico ---\n' +
-      '- CORS: se abriu como file://, o navegador pode bloquear. Sirva via http://localhost.\n' +
-      '- Rede: verifique conexão.';
+    report.textContent = `ERRO DE REDE: ${e.message}\n\nVerifique se o arquivo foi aberto via http:// (não file://).\nOpenRouter permite CORS, então chamadas diretas do navegador são permitidas[citation:9][citation:28].`;
     status.textContent = 'Falha.';
   } finally {
     btn.disabled = false;
