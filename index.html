@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>Karnak Scan — OpenRouter + Gemma 4</title>
+<title>Karnak Scan — OpenRouter</title>
 <style>
   body { font-family: system-ui, sans-serif; max-width: 1300px; margin: 2rem auto; padding: 0 1rem; background: #fafafa; }
   h1 { font-size: 1.3rem; }
@@ -21,7 +21,7 @@
 </style>
 </head>
 <body>
-<h1>Karnak Scan — OpenRouter + Gemma 4 26B</h1>
+<h1>Karnak Scan — Fraturas do Consumidor Digital</h1>
 
 <div class="filter-bar">
   <label><input type="checkbox" class="filter" value="meta" checked> Meta/Instagram</label>
@@ -50,18 +50,12 @@
 // ============================================================
 const OPENROUTER_KEY = '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';
 
-// Modelo principal (o que você especificou)
-const PRIMARY_MODEL = 'google/gemma-4-26b-a4b-it:free';
-
-// Fallbacks: se o Gemma gratuito estiver com limite de taxa, tenta na ordem
-const FALLBACK_MODELS = [
-  'qwen/qwen3.8-27b:free',
+// OpenRouter aceita no máximo 3 modelos no array 'models'
+const MODELS_ARRAY = [
+  'google/gemma-4-31b-it:free',
   'nvidia/nemotron-3-super-120b-a12b:free',
-  'meta-llama/llama-3.3-70b-instruct:free'
+  'nvidia/nemotron-3-ultra-550b-a55b:free'
 ];
-
-// Lista completa de modelos passada para OpenRouter
-const MODELS_ARRAY = [PRIMARY_MODEL, ...FALLBACK_MODELS];
 // ============================================================
 
 const CASES = [
@@ -108,7 +102,7 @@ btn.addEventListener('click', async () => {
   if (!selected.length) { status.textContent = 'Selecione ao menos um filtro.'; return; }
 
   btn.disabled = true;
-  report.textContent = `Escaneando ${selected.length} casos via OpenRouter...\nModelo principal: ${PRIMARY_MODEL}`;
+  report.textContent = `Escaneando ${selected.length} casos via OpenRouter...\nModelos: ${MODELS_ARRAY.join(', ')}`;
   status.textContent = 'Chamando OpenRouter...';
 
   const prompt = `Você é Karnak, pesquisador de fraturas do consumidor digital brasileiro.
